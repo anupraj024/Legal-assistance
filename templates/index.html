@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Assistant Chatbot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 800px;
+            height: 80vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin: 15px 0;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.bot {
+            justify-content: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message.bot .message-bubble {
+            background: #e9ecef;
+            color: #333;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message.user .message-bubble {
+            background: #007bff;
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .chat-input {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .input-field:focus {
+            border-color: #007bff;
+        }
+
+        .send-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .send-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .reset-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .reset-btn:hover {
+            background: #c82333;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 10px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🏛️ Legal Assistant Chatbot</h1>
+            <p>Get personalized legal guidance through our AI-powered conversation</p>
+            <button class="reset-btn" onclick="resetChat()">Reset Chat</button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="welcome-message">
+                <h3>Welcome! 👋</h3>
+                <p>I'm your Legal Assistant Bot. I'll ask you a series of questions to understand your legal situation and provide personalized guidance.</p>
+                <p><strong>Type "start" to begin analyzing your case.</strong></p>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            Bot is typing...
+        </div>
+
+        <div class="chat-input">
+            <input type="text" id="messageInput" class="input-field" placeholder="Type your message here..." onkeypress="handleKeyPress(event)">
+            <button id="sendBtn" class="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let isWaiting = false;
+
+        function addMessage(text, isBot = true) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isBot ? 'bot' : 'user'}`;
+            messageDiv.innerHTML = `<div class="message-bubble">${text}</div>`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('sendBtn').disabled = true;
+            isWaiting = true;
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+            document.getElementById('sendBtn').disabled = false;
+            isWaiting = false;
+        }
+
+        async function sendMessage() {
+            if (isWaiting) return;
+
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, false);
+            input.value = '';
+            
+            showLoading();
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                hideLoading();
+                
+                // Add bot response
+                addMessage(data.reply);
+
+            } catch (error) {
+                hideLoading();
+                addMessage("Sorry, I'm having trouble connecting. Please try again or reset the chat.");
+                console.error('Error:', error);
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !isWaiting) {
+                sendMessage();
+            }
+        }
+
+        async function resetChat() {
+            try {
+                await fetch('/reset', { method: 'GET' });
+                
+                // Clear chat messages
+                document.getElementById('chatMessages').innerHTML = `
+                    <div class="welcome-message">
+                        <h3>Welcome back! 👋</h3>
+                        <p>Ready to analyze another legal case? Type "start" to begin a new conversation.</p>
+                    </div>
+                `;
+                
+                // Clear input
+                document.getElementById('messageInput').value = '';
+                hideLoading();
+                
+            } catch (error) {
+                console.error('Error resetting chat:', error);
+            }
+        }
+
+        // Initialize
+        document.getElementById('messageInput').focus();
+        console.log('Legal Assistant Chatbot loaded and ready!');
+    </script>
+</body>
+</html>
